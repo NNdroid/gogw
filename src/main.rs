@@ -1,6 +1,5 @@
 use tokio::net::{UdpSocket};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::runtime::Runtime;
 use std::sync::{Arc};
 use clap::Parser;
 
@@ -31,7 +30,12 @@ fn xor(s: Vec<u8>, key: &[u8]) -> Vec<u8> {
 
 fn main() {
 	let args = Args::parse();
-	let rt = Runtime::new().unwrap();
+	let rt = tokio::runtime::Builder::new_multi_thread()
+					.worker_threads(4)
+					.thread_stack_size(3 * 1024 * 1024)
+					.enable_all()
+					.build()
+					.unwrap();
 	rt.block_on(async move {
 		let crypto_key = Box::leak(args.crypto_key.into_boxed_str());
 		let crypto_key = crypto_key.as_bytes();
