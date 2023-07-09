@@ -15,6 +15,15 @@ struct Args {
 	/// crypto key if obfs was enabled
     #[arg(short = 'k', long = "key", default_value = "abcdefghijklmnopqrstuvwxyz")]
     crypto_key: String,
+	/// tun device name
+    #[arg(long = "dev", default_value = "gw0")]
+	device_name: String,
+	/// tun ipv4 cidr
+    #[arg(long = "cidr4", default_value = "172.16.0.1/24")]
+	cidr4: String,
+	/// tun ipv6 cidr
+    #[arg(long = "cidr6", default_value = "fced:9999:9999::1/64")]
+	cidr6: String,
     /// enable debug mode
     #[arg(short = 'v', long = "debug", default_value_t = false)]
     debug_mode: bool,
@@ -43,11 +52,36 @@ fn main() {
 		let sock_r = Arc::new(sock);
 		let sock_w = sock_r.clone();
 		let tun = tokio_tun::Tun::builder()
-			.name("gw0")
+			.name(&args.device_name)
 			.tap(false)
 			.packet_info(false)
 			.up()
 			.try_build().unwrap();
+
+		let output = std::process::Command::new("/usr/sbin/ip")
+			.arg("addr")
+			.arg("add")
+			.arg(&args.cidr4)
+			.arg("dev")
+			.arg(&args.device_name)
+			.output()
+			.expect("failed to execute command!");
+		if !output.status.success() {
+			println!("add cidr4 failed!")
+		}
+
+		let output = std::process::Command::new("/usr/sbin/ip")
+			.arg("-6")
+			.arg("addr")
+			.arg("add")
+			.arg(&args.cidr6)
+			.arg("dev")
+			.arg(&args.device_name)
+			.output()
+			.expect("failed to execute command!");
+		if !output.status.success() {
+			println!("add cidr6 failed!")
+		}
 
 		let (mut dev_r, mut dev_w) = tokio::io::split(tun);
 
